@@ -14,6 +14,7 @@
 
 #include <time.h>
 
+#include <rcutils/strdup.h>
 #include <rmw_microxrcedds_c/rmw_c_macros.h>
 #include <rmw_microros/rmw_microros.h>
 #include <rmw_microxrcedds_c/config.h>
@@ -52,7 +53,7 @@ rmw_init_options_init(
   init_options->instance_id = 0;
   init_options->implementation_identifier = eprosima_microxrcedds_identifier;
   init_options->allocator = allocator;
-  init_options->enclave = "/";
+  init_options->enclave = NULL;
   init_options->domain_id = 0;
   init_options->security_options = rmw_get_default_security_options();
   init_options->localhost_only = RMW_LOCALHOST_ONLY_DEFAULT;
@@ -147,6 +148,11 @@ rmw_init_options_copy(
 
   dst_impl->transport_params = src_impl->transport_params;
 
+  dst->enclave = rcutils_strdup(src->enclave, src->allocator);
+  if (NULL != src->enclave && NULL == dst->enclave) {
+    return RMW_RET_BAD_ALLOC;
+  }
+
   return RMW_RET_OK;
 }
 
@@ -176,7 +182,10 @@ rmw_init_options_fini(
     return RMW_RET_ERROR;
   }
 
+  rcutils_allocator_t * allocator = &init_options->allocator;
+  RCUTILS_CHECK_ALLOCATOR(allocator, return RMW_RET_INVALID_ARGUMENT);
 
+  allocator->deallocate(init_options->enclave, allocator->state);
   *init_options = rmw_get_zero_initialized_init_options();
 
   return RMW_RET_OK;
